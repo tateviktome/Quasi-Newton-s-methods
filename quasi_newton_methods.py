@@ -3,18 +3,21 @@ import autograd.numpy as np
 from autograd import grad
 from scipy.optimize import line_search
 
-def printMessage(algorithmName, solution, iterationCount, alphasUsed, hks):
-    print algorithmName + ' solution: ', solution, '  IterationCount: ', iterationCount, '  Alphas Used: ', alphasUsed, '  matrix approximations: ', hks;
+def printMessage(algorithmName, solution, iterationCount, minimizers):
+    funcValues = [];
+    for element in minimizers:
+        funcValues.append(objcFunction(element[0], element[1]));
+    print algorithmName + ' solution: ', solution, '  IterationCount: ', iterationCount, '  minimizers: ', minimizers, '  values: ', funcValues;
 
 def objcFunction(x1,x2):
     # return 2*x1**2 + x2**2 + 2*x1*x2+ x1-x2;
-    return np.exp(x1-1) + np.exp(1-x2) + (x1-x2)**2;
-    # return 2.5*x1**2 - 3*x1*x2 + x2**2-x2+5;
+    # return np.exp(x1-1) + np.exp(1-x2) + (x1-x2)**2;
+    return 2.5*x1**2 - 3*x1*x2 + x2**2-x2+5;
 
 def objcFunction1(params):
     # return 2*params[0]**2 + params[1]**2 + 2*params[0]*params[1]+ params[0]-params[1];
-    return np.exp(params[0] - 1) + np.exp(1 - params[1]) + (params[0] - params[1]) ** 2;
-    # return 2.5 * params[0] ** 2 - 3 * params[0] * params[1] + params[1] ** 2 - params[1] + 5;
+    # return np.exp(params[0] - 1) + np.exp(1 - params[1]) + (params[0] - params[1]) ** 2;
+    return 2.5 * params[0] ** 2 - 3 * params[0] * params[1] + params[1] ** 2 - params[1] + 5;
 
 def identityMatrix():
     return np.array([[1,0], [0,1]]);
@@ -46,23 +49,21 @@ def bfgs_method(x0, iterationCount):
     hk = h0
 
     #for reporting
-    alphas = [];
-    hks = [];
+    mins = []
     while count <= iterationCount:
          searchDir = np.dot(-hk, grad_objcFunc);
          alpha = line_search(objcFunction1, grad(objcFunction1), xk, searchDir)[0]
-         alphas.append(alpha);
          xKPlus1 = xk + alpha * searchDir;
          gradSub = makeGradient(objcFunction, xKPlus1) - grad_objcFunc;
          xSub = xKPlus1 - xk;
          hk = bfgs_matrix_approximation(hk, xSub, gradSub);
-         hks.append(hk);
          grad_objcFunc = makeGradient(objcFunction, xKPlus1);
          xk = xKPlus1;
+         mins.append(xk);
          count += 1;
-    print printMessage('BFGS', xk, iterationCount, alphas, hks);
+    print printMessage('BFGS', xk, iterationCount, mins);
 
-bfgs_method([0.0, 0.0], 4);
+bfgs_method([0.0, 0.0], 3);
 
 def dfp_matrix_approximation(hk, newSearchDir, gradSub):
     return hk + (np.dot(newSearchDir[np.newaxis].T, newSearchDir[np.newaxis]) / np.dot(np.transpose(newSearchDir), gradSub)) - (np.dot((np.dot(hk, gradSub))[np.newaxis].T, (np.dot(hk, gradSub))[np.newaxis]) / np.dot(np.transpose(gradSub), np.dot(hk, gradSub)));
@@ -74,34 +75,34 @@ def dfp_method(x0, iterationCount):
     xk = x0;
 
     #For reporting
-    alphas = [];
-    hks = [];
+    mins = []
     grad_objcFunc = makeGradient(objcFunction, xk);
     while count <= iterationCount:
         searchDir = np.dot(-hk, grad_objcFunc);
         alpha = line_search(objcFunction1, grad(objcFunction1), xk, searchDir)[0]
-        alphas.append(alpha);
         xkPlus1 = xk + alpha * searchDir;
         newSearchDir = alpha * searchDir;
         gradSub = makeGradient(objcFunction, xkPlus1) - grad_objcFunc;
         hk = dfp_matrix_approximation(hk, newSearchDir, gradSub);
-        hks.append(hk);
         grad_objcFunc = makeGradient(objcFunction, xkPlus1);
         xk = xkPlus1;
         count += 1;
-    print printMessage('DFP', xk, iterationCount, alphas, hks);
+        mins.append(xk);
+    print printMessage('DFP', xk, iterationCount, mins);
 
-dfp_method([0.0, 0.0], 4);
+dfp_method([0.0, 0.0], 3);
 
 def newton_method(x0, iterationCount):
     count = 1;
     xk = x0;
+
+    #reporting
+    mins = [];
     while count <= iterationCount:
         xkPlus1 = xk - np.dot(np.linalg.inv(makeHessian(objcFunction, xk)), makeGradient(objcFunction, xk));
         xk = xkPlus1;
         count += 1;
-    print printMessage('Newton', xk, iterationCount, [], []);
+        mins.append(xk);
+    print printMessage('Newton', xk, iterationCount, mins);
 
-newton_method([0.0, 0.0], 4);
-
-newton_method([0.0, 0.0], 30);
+newton_method([0.0, 0.0], 3);
